@@ -5,23 +5,52 @@ import { useRouter } from "next/navigation";
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { User } from '@/types/user';
+import { UserStatistics, Generation } from '@/types/database';
+import { ImageModal } from '@/components/ImageModal';
 
 export default function ProfilePage() {
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<UserStatistics | null>(null);
+  const [generations, setGenerations] = useState<Generation[]>([]);
+  const [selectedImage, setSelectedImage] = useState<Generation | null>(null);
 
   useEffect(() => {
-    async function getUser() {
+    async function getUserData() {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error || !user) {
         return router.push("/sign-in");
       }
       setUser(user as User);
+      
+      // Fetch user statistics and generations
+      const [statsResponse, generationsResponse] = await Promise.all([
+        supabase
+          .from('user_statistics')
+          .select('*')
+          .eq('user_id', user.id)
+          .single(),
+        supabase
+          .from('generations')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10)
+      ]);
+      
+      if (!statsResponse.error && statsResponse.data) {
+        setStats(statsResponse.data);
+      }
+      
+      if (!generationsResponse.error && generationsResponse.data) {
+        setGenerations(generationsResponse.data);
+      }
+      
       setLoading(false);
     }
-    getUser();
+    getUserData();
   }, [supabase, router]);
 
   const handleSignOut = async () => {
@@ -106,9 +135,21 @@ export default function ProfilePage() {
             <h2 className="text-2xl font-bold mb-6">Usage Statistics</h2>
             <div className="grid gap-6">
               {[
-                { label: 'Images Processed', value: '0', icon: '🖼️' },
-                { label: 'Captions Generated', value: '0', icon: '✨' },
-                { label: 'Account Type', value: 'Free', icon: '⭐' },
+                { 
+                  label: 'Images Processed', 
+                  value: stats?.total_generations ?? 0, 
+                  icon: '🖼️' 
+                },
+                { 
+                  label: 'Tokens Remaining', 
+                  value: stats?.tokens_remaining ?? 0, 
+                  icon: '🎫' 
+                },
+                { 
+                  label: 'Account Type', 
+                  value: stats?.account_tier ?? 'Free', 
+                  icon: '⭐' 
+                },
               ].map((stat, index) => (
                 <div key={index} className="flex items-center p-4 rounded-lg bg-white/5">
                   <span className="text-2xl mr-4">{stat.icon}</span>
@@ -121,7 +162,70 @@ export default function ProfilePage() {
             </div>
           </motion.div>
         </div>
+
+        {/* Generations History */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="mt-8 bg-black/30 p-8 rounded-2xl backdrop-blur-xl border border-gray-800"
+        >
+          <h2 className="text-2xl font-bold mb-6">Recent Generations</h2>
+          {generations.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left border-b border-gray-700">
+                    <th className="pb-4">Image</th>
+                    <th className="pb-4">Caption</th>
+                    <th className="pb-4">Confidence</th>
+                    <th className="pb-4">Generated</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700">
+                  {generations.map((gen) => (
+                    <tr key={gen.id} className="hover:bg-white/5">
+                      <td className="py-4">
+                        <img 
+                          src={gen.image_url} 
+                          alt="Generated caption" 
+                          className="w-16 h-16 object-cover rounded cursor-pointer hover:opacity-80"
+                          onClick={() => setSelectedImage(gen)}
+                        />
+                      </td>
+                      <td className="py-4">
+                        <p className="text-sm">{gen.caption}</p>
+                      </td>
+                      <td className="py-4">
+                        <span className="text-blue-400">
+                          {(gen.confidence_score * 100).toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="py-4">
+                        <span className="text-sm text-gray-400">
+                          {new Date(gen.created_at).toLocaleDateString()}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              No generations yet. Try generating some captions!
+            </div>
+          )}
+        </motion.div>
       </div>
+
+      {/* Image Modal */}
+      <ImageModal
+        imageUrl={selectedImage?.image_url ?? ''}
+        caption={selectedImage?.caption ?? ''}
+        isOpen={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+      />
     </div>
   );
 }

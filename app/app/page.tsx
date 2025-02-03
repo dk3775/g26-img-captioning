@@ -1,23 +1,69 @@
 'use client'
 
 import { motion } from 'framer-motion';
-import { useState } from 'react';
-
+import { useState, useRef } from 'react';
+import { createClient } from "@/utils/supabase/client";
+import { uploadImage } from '@/app/actions/upload';
 
 export default function AppPage() {
-  const [imageUrl, setImageUrl] = useState('');
+  const supabase = createClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageUrl, setImageUrl] = useState<string|undefined>('');
   const [caption, setCaption] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const result = await uploadImage(formData);
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      setImageUrl(result.url);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      // TODO: Add error toast/notification
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const generateCaption = async () => {
     if (!imageUrl) return;
     setLoading(true);
     try {
-      // TODO: Implement the API call to generate caption
-      // const response = await fetch('/api/generate-caption', ...);
-      // const data = await response.json();
-      // setCaption(data.caption);
-      setCaption('Example caption - API integration pending');
+      const startTime = performance.now();
+      
+      // TODO: Implement actual API call
+      const mockCaption = 'Example caption - API integration pending';
+      const processingTime = (performance.now() - startTime) / 1000;
+      
+      // Store the generation in the database
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error } = await supabase
+          .from('generations')
+          .insert({
+            user_id: user.id,
+            image_url: imageUrl,
+            caption: mockCaption,
+            confidence_score: 0.95, // Mock confidence score
+            processing_time: processingTime,
+            tokens_used: 1
+          });
+          
+        if (error) {
+          console.error('Error storing generation:', error);
+        }
+      }
+
+      setCaption(mockCaption);
     } catch (error) {
       console.error('Error generating caption:', error);
     } finally {
@@ -35,16 +81,51 @@ export default function AppPage() {
         >
           <h2 className="text-2xl font-semibold mb-6">Generate Image Caption</h2>
           <div className="flex flex-col gap-4">
-            <input
-              type="text"
-              placeholder="Enter image URL or upload an image"
-              className="w-full px-4 py-2 rounded-lg bg-white/10 border border-gray-700 focus:border-blue-500 focus:outline-none"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-            />
+            <div className="flex flex-col gap-2">
+              <input
+                type="text"
+                placeholder="Enter image URL"
+                className="w-full px-4 py-2 rounded-lg bg-white/10 border border-gray-700 focus:border-blue-500 focus:outline-none"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                disabled={uploading}
+              />
+              <div className="text-center text-gray-400">or</div>
+              <div 
+                onClick={() => !uploading && fileInputRef.current?.click()}
+                className={`w-full px-4 py-8 rounded-lg border-2 border-dashed border-gray-700 hover:border-blue-500 transition-colors text-center ${uploading ? 'opacity-50' : 'cursor-pointer'}`}
+              >
+                {uploading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-gray-400">Uploading image...</span>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-gray-400">Click to upload or drag and drop</p>
+                    <p className="text-sm text-gray-500">PNG, JPG, JPEG up to 5MB</p>
+                  </>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file);
+                  }}
+                  disabled={uploading}
+                />
+              </div>
+            </div>
+            
             <button 
               onClick={generateCaption}
-              disabled={loading || !imageUrl}
+              disabled={loading || uploading || !imageUrl}
               className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? 'Generating...' : 'Generate Caption'}
