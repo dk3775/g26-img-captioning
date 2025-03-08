@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
+import { useEffect, useState } from 'react';
 
 export default function AppLayout({
   children,
@@ -11,6 +12,24 @@ export default function AppLayout({
 }>) {
   const router = useRouter();
   const supabase = createClient();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    async function checkAdminStatus() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        console.log('Checking admin status for user:', user.id);
+        const { data: adminUser } = await supabase
+          .from('admin_users')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        console.log('Admin user:', adminUser);
+        setIsAdmin(!!adminUser);
+      }
+    }
+    checkAdminStatus();
+  }, [supabase]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -33,6 +52,11 @@ export default function AppLayout({
               <Link href="/profile" className="hover:text-blue-400 transition-colors">
                 Profile
               </Link>
+              {isAdmin && (
+                <Link href="/admin" className="hover:text-blue-400 transition-colors">
+                  Admin
+                </Link>
+              )}
             </div>
             <button 
               onClick={handleSignOut}
