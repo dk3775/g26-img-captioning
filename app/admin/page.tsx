@@ -15,11 +15,13 @@ import {
   ArcElement,
   LineElement,
   PointElement,
+  RadialLinearScale,
+  Filler
 } from 'chart.js';
-import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import { Bar, Doughnut, Line, Pie, PolarArea, Radar } from 'react-chartjs-2';
 import { format, subDays } from 'date-fns';
 
-// Register ChartJS components
+// Register additional ChartJS components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -29,7 +31,9 @@ ChartJS.register(
   Legend,
   ArcElement,
   LineElement,
-  PointElement
+  PointElement,
+  RadialLinearScale,
+  Filler
 );
 
 interface AdminStats {
@@ -180,7 +184,15 @@ export default function AdminDashboard() {
         .range((page - 1) * itemsPerPage, page * itemsPerPage - 1);
 
       if (data) {
-        setGenerations(data as Generation[]);
+        // Transform the data to match the Generation interface
+        const transformedData = data.map(item => ({
+          ...item,
+          user: {
+            email: item.user[0]?.email || ''
+          }
+        })) as Generation[];
+
+        setGenerations(transformedData);
         setTotalCount(count || 0);
       }
     } catch (error) {
@@ -252,7 +264,7 @@ export default function AdminDashboard() {
   // Helper function to process distribution data
   function processDistributionData(data: any[]): Record<string, number> {
     return data.reduce((acc: Record<string, number>, curr: any) => {
-      const key = Object.values(curr)[0];
+      const key = Object.values(curr)[0] as string;
       const value = Number(Object.values(curr)[1]);
       acc[key] = value;
       return acc;
@@ -262,24 +274,40 @@ export default function AdminDashboard() {
   // Chart configurations
   const chartColors = {
     primary: [
-      '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-      '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF99CC'
+      'rgba(255, 99, 132, 0.8)',
+      'rgba(54, 162, 235, 0.8)',
+      'rgba(255, 206, 86, 0.8)',
+      'rgba(75, 192, 192, 0.8)',
+      'rgba(153, 102, 255, 0.8)',
+      'rgba(255, 159, 64, 0.8)',
+      'rgba(255, 99, 132, 0.8)',
+      'rgba(201, 203, 207, 0.8)',
+      'rgba(75, 192, 192, 0.8)',
+      'rgba(255, 153, 204, 0.8)'
     ],
-    background: 'rgba(54, 162, 235, 0.5)',
-    border: 'rgba(54, 162, 235, 1)'
+    borders: [
+      'rgb(255, 99, 132)',
+      'rgb(54, 162, 235)',
+      'rgb(255, 206, 86)',
+      'rgb(75, 192, 192)',
+      'rgb(153, 102, 255)',
+      'rgb(255, 159, 64)',
+      'rgb(255, 99, 132)',
+      'rgb(201, 203, 207)',
+      'rgb(75, 192, 192)',
+      'rgb(255, 153, 204)'
+    ],
   };
 
   const occupationChartData = {
     labels: Object.keys(demographics.occupations),
     datasets: [{
+      label: 'Number of Users',
       data: Object.values(demographics.occupations),
-      backgroundColor: [
-        '#FF6384',
-        '#36A2EB',
-        '#FFCE56',
-        '#4BC0C0',
-        '#9966FF'
-      ],
+      backgroundColor: 'rgba(54, 162, 235, 0.2)',
+      borderColor: 'rgba(54, 162, 235, 1)',
+      borderWidth: 2,
+      pointBackgroundColor: 'rgba(54, 162, 235, 1)',
     }]
   };
 
@@ -288,7 +316,15 @@ export default function AdminDashboard() {
     datasets: [{
       label: 'Users by Country',
       data: Object.values(demographics.countries),
-      backgroundColor: 'rgba(54, 162, 235, 0.5)',
+      backgroundColor: (context: any) => {
+        const chart = context.chart;
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return null;
+        const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+        gradient.addColorStop(0, 'rgba(54, 162, 235, 0.2)');
+        gradient.addColorStop(1, 'rgba(54, 162, 235, 0.8)');
+        return gradient;
+      },
       borderColor: 'rgba(54, 162, 235, 1)',
       borderWidth: 1,
     }]
@@ -311,8 +347,8 @@ export default function AdminDashboard() {
     datasets: [{
       label: 'Users by Age Group',
       data: Object.values(demographics.ageGroups),
-      backgroundColor: chartColors.background,
-      borderColor: chartColors.border,
+      backgroundColor: chartColors.primary,
+      borderColor: chartColors.borders,
       borderWidth: 1,
     }]
   };
@@ -322,6 +358,7 @@ export default function AdminDashboard() {
     datasets: [{
       data: Object.values(demographics.interests),
       backgroundColor: chartColors.primary,
+      borderWidth: 1,
     }]
   };
 
@@ -330,6 +367,8 @@ export default function AdminDashboard() {
     datasets: [{
       data: Object.values(demographics.genders),
       backgroundColor: chartColors.primary.slice(0, 4),
+      borderColor: chartColors.borders.slice(0, 4),
+      borderWidth: 1,
     }]
   };
 
@@ -338,8 +377,8 @@ export default function AdminDashboard() {
     datasets: [{
       label: 'Usage Purposes',
       data: Object.values(demographics.usagePurposes),
-      backgroundColor: chartColors.background,
-      borderColor: chartColors.border,
+      backgroundColor: chartColors.primary,
+      borderColor: chartColors.borders,
       borderWidth: 1,
     }]
   };
@@ -416,6 +455,86 @@ export default function AdminDashboard() {
     }
   };
 
+  const radarOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      r: {
+        angleLines: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        pointLabels: {
+          color: 'rgb(156, 163, 175)'
+        },
+        ticks: {
+          color: 'rgb(156, 163, 175)',
+          backdropColor: 'transparent'
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: false
+      }
+    }
+  };
+
+  const horizontalBarOptions = {
+    indexAxis: 'y' as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      x: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: 'rgb(156, 163, 175)'
+        }
+      },
+      y: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          color: 'rgb(156, 163, 175)'
+        }
+      }
+    }
+  };
+
+  const polarAreaOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      r: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: 'rgb(156, 163, 175)',
+          backdropColor: 'transparent'
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        position: 'right' as const,
+        labels: {
+          color: 'rgb(156, 163, 175)'
+        }
+      }
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen pt-20 text-center">Loading...</div>;
   }
@@ -453,7 +572,7 @@ export default function AdminDashboard() {
           <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
             <h3 className="text-xl font-bold mb-4">User Occupations</h3>
             <div className="h-[300px] flex items-center justify-center">
-              <Doughnut data={occupationChartData} options={doughnutOptions} />
+              <Radar data={occupationChartData} options={radarOptions} />
             </div>
           </div>
 
@@ -461,7 +580,7 @@ export default function AdminDashboard() {
           <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
             <h3 className="text-xl font-bold mb-4">Age Distribution</h3>
             <div className="h-[300px]">
-              <Bar data={ageGroupChartData} options={barOptions} />
+              <Bar data={ageGroupChartData} options={horizontalBarOptions} />
             </div>
           </div>
 
@@ -469,7 +588,7 @@ export default function AdminDashboard() {
           <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
             <h3 className="text-xl font-bold mb-4">Gender Distribution</h3>
             <div className="h-[300px] flex items-center justify-center">
-              <Doughnut data={genderChartData} options={doughnutOptions} />
+              <Pie data={genderChartData} options={doughnutOptions} />
             </div>
           </div>
 
@@ -477,21 +596,21 @@ export default function AdminDashboard() {
           <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
             <h3 className="text-xl font-bold mb-4">User Interests</h3>
             <div className="h-[300px] flex items-center justify-center">
-              <Doughnut data={interestChartData} options={doughnutOptions} />
+              <PolarArea data={interestChartData} options={polarAreaOptions} />
             </div>
           </div>
 
           {/* Usage Purposes */}
           <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
             <h3 className="text-xl font-bold mb-4">Usage Purposes</h3>
-            <div className="h-[300px]">
-              <Bar data={usagePurposeChartData} options={barOptions} />
+            <div className="h-[300px] flex items-center justify-center">
+              <Doughnut data={usagePurposeChartData} options={doughnutOptions} />
             </div>
           </div>
 
           {/* Country Distribution */}
           <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
-            <h3 className="text-xl font-bold mb-4">Top 10 Countries</h3>
+            <h3 className="text-xl font-bold mb-4">Top Countries</h3>
             <div className="h-[300px]">
               <Bar data={countryChartData} options={barOptions} />
             </div>
@@ -501,7 +620,17 @@ export default function AdminDashboard() {
           <div className="md:col-span-2 lg:col-span-3 bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
             <h3 className="text-xl font-bold mb-4">User Growth (Last 30 Days)</h3>
             <div className="h-[300px]">
-              <Line data={signupChartData} options={lineOptions} />
+              <Line 
+                data={{
+                  ...signupChartData,
+                  datasets: [{
+                    ...signupChartData.datasets[0],
+                    fill: true,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                  }]
+                }} 
+                options={lineOptions} 
+              />
             </div>
           </div>
         </motion.div>

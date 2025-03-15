@@ -34,4 +34,7 @@ export interface Generation {
   processing_time: number;
   tokens_used: number;
   created_at: string;
+  user: {
+    email: string;
+  };
 }

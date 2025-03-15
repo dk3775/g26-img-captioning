@@ -26,6 +26,15 @@ export const signUpAction = async (formData: FormData) => {
     );
   }
 
+  // Validate interests length
+  if (interests.length > 5) {
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "Please select up to 5 interests",
+    );
+  }
+
   // Validate age
   if (age < 13 || age > 120) {
     return encodedRedirect(
@@ -71,7 +80,7 @@ export const signUpAction = async (formData: FormData) => {
         gender: gender.toLowerCase(),
         occupation: occupation.toLowerCase(),
         country: country.toLowerCase(),
-        interests,
+        interests: interests.slice(0, 5), // Ensure max 5 interests
         usage_purpose: usagePurpose,
       })
       .eq('id', user.id);
@@ -79,6 +88,11 @@ export const signUpAction = async (formData: FormData) => {
     if (profileError) {
       console.error("Error updating profile:", profileError);
       // Continue with sign up even if profile update fails
+      return encodedRedirect(
+        "error",
+        "/sign-up",
+        "Account created but profile update failed. Please update your profile later."
+      );
     }
   }
 
