@@ -4,6 +4,33 @@ import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  LineElement,
+  PointElement,
+} from 'chart.js';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import { format, subDays } from 'date-fns';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  LineElement,
+  PointElement
+);
 
 interface AdminStats {
   total_users: number;
@@ -39,6 +66,16 @@ interface Generation {
   };
 }
 
+interface Demographics {
+  occupations: Record<string, number>;
+  countries: Record<string, number>;
+  dailySignups: Record<string, number>;
+  ageGroups: Record<string, number>;
+  interests: Record<string, number>;
+  genders: Record<string, number>;
+  usagePurposes: Record<string, number>;
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -49,6 +86,15 @@ export default function AdminDashboard() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 10;
+  const [demographics, setDemographics] = useState<Demographics>({
+    occupations: {},
+    countries: {},
+    dailySignups: {},
+    ageGroups: {},
+    interests: {},
+    genders: {},
+    usagePurposes: {}
+  });
   
   const supabase = createClient();
 
@@ -142,6 +188,234 @@ export default function AdminDashboard() {
     }
   }
 
+  useEffect(() => {
+    fetchDemographics();
+  }, []);
+
+  async function fetchDemographics() {
+    try {
+      const [
+        occupationData,
+        countryData,
+        signupData,
+        ageData,
+        interestData,
+        genderData,
+        purposeData
+      ] = await Promise.all([
+        supabase.rpc('get_occupation_distribution'),
+        supabase.rpc('get_country_distribution'),
+        supabase.rpc('get_daily_signups', { days_back: 30 }),
+        supabase.rpc('get_age_distribution'),
+        supabase.rpc('get_interest_distribution'),
+        supabase.rpc('get_gender_distribution'),
+        supabase.rpc('get_usage_purpose_distribution')
+      ]);
+
+      if (occupationData.error) throw occupationData.error;
+      if (countryData.error) throw countryData.error;
+      if (signupData.error) throw signupData.error;
+      if (ageData.error) throw ageData.error;
+      if (interestData.error) throw interestData.error;
+      if (genderData.error) throw genderData.error;
+      if (purposeData.error) throw purposeData.error;
+
+      // Process all data
+      const occupations = processDistributionData(occupationData.data);
+      const countries = processDistributionData(countryData.data);
+      const ageGroups = processDistributionData(ageData.data);
+      const interests = processDistributionData(interestData.data);
+      const genders = processDistributionData(genderData.data);
+      const usagePurposes = processDistributionData(purposeData.data);
+
+      // Process signup data
+      const dailySignups = signupData.data.reduce((acc: Record<string, number>, curr: any) => {
+        const date = format(new Date(curr.signup_date), 'MMM dd');
+        acc[date] = Number(curr.count);
+        return acc;
+      }, {});
+
+      setDemographics({
+        occupations,
+        countries,
+        dailySignups,
+        ageGroups,
+        interests,
+        genders,
+        usagePurposes
+      });
+    } catch (error) {
+      console.error('Error fetching demographics:', error);
+    }
+  }
+
+  // Helper function to process distribution data
+  function processDistributionData(data: any[]): Record<string, number> {
+    return data.reduce((acc: Record<string, number>, curr: any) => {
+      const key = Object.values(curr)[0];
+      const value = Number(Object.values(curr)[1]);
+      acc[key] = value;
+      return acc;
+    }, {});
+  }
+
+  // Chart configurations
+  const chartColors = {
+    primary: [
+      '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+      '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF99CC'
+    ],
+    background: 'rgba(54, 162, 235, 0.5)',
+    border: 'rgba(54, 162, 235, 1)'
+  };
+
+  const occupationChartData = {
+    labels: Object.keys(demographics.occupations),
+    datasets: [{
+      data: Object.values(demographics.occupations),
+      backgroundColor: [
+        '#FF6384',
+        '#36A2EB',
+        '#FFCE56',
+        '#4BC0C0',
+        '#9966FF'
+      ],
+    }]
+  };
+
+  const countryChartData = {
+    labels: Object.keys(demographics.countries),
+    datasets: [{
+      label: 'Users by Country',
+      data: Object.values(demographics.countries),
+      backgroundColor: 'rgba(54, 162, 235, 0.5)',
+      borderColor: 'rgba(54, 162, 235, 1)',
+      borderWidth: 1,
+    }]
+  };
+
+  const signupChartData = {
+    labels: Object.keys(demographics.dailySignups),
+    datasets: [{
+      label: 'Daily Sign-ups',
+      data: Object.values(demographics.dailySignups),
+      fill: true,
+      borderColor: 'rgb(75, 192, 192)',
+      backgroundColor: 'rgba(75, 192, 192, 0.2)',
+      tension: 0.1,
+    }]
+  };
+
+  const ageGroupChartData = {
+    labels: Object.keys(demographics.ageGroups),
+    datasets: [{
+      label: 'Users by Age Group',
+      data: Object.values(demographics.ageGroups),
+      backgroundColor: chartColors.background,
+      borderColor: chartColors.border,
+      borderWidth: 1,
+    }]
+  };
+
+  const interestChartData = {
+    labels: Object.keys(demographics.interests),
+    datasets: [{
+      data: Object.values(demographics.interests),
+      backgroundColor: chartColors.primary,
+    }]
+  };
+
+  const genderChartData = {
+    labels: Object.keys(demographics.genders),
+    datasets: [{
+      data: Object.values(demographics.genders),
+      backgroundColor: chartColors.primary.slice(0, 4),
+    }]
+  };
+
+  const usagePurposeChartData = {
+    labels: Object.keys(demographics.usagePurposes),
+    datasets: [{
+      label: 'Usage Purposes',
+      data: Object.values(demographics.usagePurposes),
+      backgroundColor: chartColors.background,
+      borderColor: chartColors.border,
+      borderWidth: 1,
+    }]
+  };
+
+  // Common chart options
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          color: 'rgb(156, 163, 175)',
+        }
+      }
+    }
+  };
+
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: 'rgb(156, 163, 175)'
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          color: 'rgb(156, 163, 175)'
+        }
+      }
+    }
+  };
+
+  const lineOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        ticks: {
+          color: 'rgb(156, 163, 175)'
+        }
+      },
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          color: 'rgb(156, 163, 175)'
+        }
+      }
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen pt-20 text-center">Loading...</div>;
   }
@@ -167,6 +441,69 @@ export default function AdminDashboard() {
               <p className="text-2xl font-bold">{stat.value.toLocaleString()}</p>
             </div>
           ))}
+        </motion.div>
+
+        {/* Demographics Charts */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6"
+        >
+          {/* Occupation Distribution */}
+          <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
+            <h3 className="text-xl font-bold mb-4">User Occupations</h3>
+            <div className="h-[300px] flex items-center justify-center">
+              <Doughnut data={occupationChartData} options={doughnutOptions} />
+            </div>
+          </div>
+
+          {/* Age Groups */}
+          <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
+            <h3 className="text-xl font-bold mb-4">Age Distribution</h3>
+            <div className="h-[300px]">
+              <Bar data={ageGroupChartData} options={barOptions} />
+            </div>
+          </div>
+
+          {/* Gender Distribution */}
+          <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
+            <h3 className="text-xl font-bold mb-4">Gender Distribution</h3>
+            <div className="h-[300px] flex items-center justify-center">
+              <Doughnut data={genderChartData} options={doughnutOptions} />
+            </div>
+          </div>
+
+          {/* Interests */}
+          <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
+            <h3 className="text-xl font-bold mb-4">User Interests</h3>
+            <div className="h-[300px] flex items-center justify-center">
+              <Doughnut data={interestChartData} options={doughnutOptions} />
+            </div>
+          </div>
+
+          {/* Usage Purposes */}
+          <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
+            <h3 className="text-xl font-bold mb-4">Usage Purposes</h3>
+            <div className="h-[300px]">
+              <Bar data={usagePurposeChartData} options={barOptions} />
+            </div>
+          </div>
+
+          {/* Country Distribution */}
+          <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
+            <h3 className="text-xl font-bold mb-4">Top 10 Countries</h3>
+            <div className="h-[300px]">
+              <Bar data={countryChartData} options={barOptions} />
+            </div>
+          </div>
+
+          {/* User Growth - Full Width */}
+          <div className="md:col-span-2 lg:col-span-3 bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
+            <h3 className="text-xl font-bold mb-4">User Growth (Last 30 Days)</h3>
+            <div className="h-[300px]">
+              <Line data={signupChartData} options={lineOptions} />
+            </div>
+          </div>
         </motion.div>
 
         {/* Main Content */}

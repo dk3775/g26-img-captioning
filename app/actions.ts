@@ -8,18 +8,47 @@ import { redirect } from "next/navigation";
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
-  const supabase = await createClient();
-  const origin = (await headers()).get("origin");
+  const fullName = formData.get("full_name")?.toString();
+  const age = parseInt(formData.get("age")?.toString() || "0");
+  const gender = formData.get("gender")?.toString();
+  const occupation = formData.get("occupation")?.toString();
+  const country = formData.get("country")?.toString();
+  const interests = formData.getAll("interests").map(i => i.toString());
+  const usagePurpose = formData.get("usage_purpose")?.toString();
 
-  if (!email || !password) {
+  // Validate required fields
+  if (!email || !password || !fullName || !age || !gender || 
+      !occupation || !country || interests.length === 0 || !usagePurpose) {
     return encodedRedirect(
       "error",
       "/sign-up",
-      "Email and password are required",
+      "All fields are required",
     );
   }
 
-  const { error } = await supabase.auth.signUp({
+  // Validate age
+  if (age < 13 || age > 120) {
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "Age must be between 13 and 120",
+    );
+  }
+
+  // Validate occupation
+  const validOccupations = ['educator', 'student', 'hobbyist', 'professional', 'other'];
+  if (!validOccupations.includes(occupation.toLowerCase())) {
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "Invalid occupation selected",
+    );
+  }
+
+  const supabase = await createClient();
+  const origin = (await headers()).get("origin");
+
+  const { data: { user }, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -30,13 +59,34 @@ export const signUpAction = async (formData: FormData) => {
   if (error) {
     console.error(error.code + " " + error.message);
     return encodedRedirect("error", "/sign-up", error.message);
-  } else {
-    return encodedRedirect(
-      "success",
-      "/sign-up",
-      "Thanks for signing up! Please check your email for a verification link.",
-    );
   }
+
+  if (user) {
+    // Update the users table with additional information
+    const { error: profileError } = await supabase
+      .from('users')
+      .update({
+        full_name: fullName,
+        age,
+        gender: gender.toLowerCase(),
+        occupation: occupation.toLowerCase(),
+        country: country.toLowerCase(),
+        interests,
+        usage_purpose: usagePurpose,
+      })
+      .eq('id', user.id);
+
+    if (profileError) {
+      console.error("Error updating profile:", profileError);
+      // Continue with sign up even if profile update fails
+    }
+  }
+
+  return encodedRedirect(
+    "success",
+    "/sign-up",
+    "Thanks for signing up! Please check your email for a verification link.",
+  );
 };
 
 export const signInAction = async (formData: FormData) => {
