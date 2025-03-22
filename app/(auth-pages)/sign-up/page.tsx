@@ -135,6 +135,17 @@ export default function Signup() {
       case 1:
         return (
           <div className="space-y-5">
+          <div>
+            <Label htmlFor="full_name" className="text-sm font-medium text-gray-300">Full Name</Label>
+            <Input 
+              name="full_name" 
+              placeholder="John Doe" 
+              required 
+              value={formData.full_name}
+              onChange={handleInputChange}
+              className="mt-1.5 bg-black/40 border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+            />
+          </div>
             <div>
               <Label htmlFor="email" className="text-sm font-medium text-gray-300">Email</Label>
               <Input 
@@ -156,17 +167,6 @@ export default function Signup() {
                 minLength={6}
                 required
                 value={formData.password}
-                onChange={handleInputChange}
-                className="mt-1.5 bg-black/40 border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-              />
-            </div>
-            <div>
-              <Label htmlFor="full_name" className="text-sm font-medium text-gray-300">Full Name</Label>
-              <Input 
-                name="full_name" 
-                placeholder="John Doe" 
-                required 
-                value={formData.full_name}
                 onChange={handleInputChange}
                 className="mt-1.5 bg-black/40 border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
               />
