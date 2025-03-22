@@ -7,10 +7,61 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+
+interface SignInResponse {
+  error?: string;
+  success?: string;
+}
 
 export function SignInForm({ message }: { message?: Message }) {
   const [useOTP, setUseOTP] = useState(false);
+  const [status, setStatus] = useState<SignInResponse>({});
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status.success) {
+      toast.success(status.success);
+      if (useOTP) {
+        // Show success message for magic link
+        // No redirect needed as user will click the email link
+      } else {
+        // Show welcome toast and redirect will happen automatically via the server action
+        toast.success("Welcome back!");
+      }
+    }
+    if (status.error) {
+      toast.error(status.error);
+    }
+  }, [status, useOTP]);
+
+  const handleSignIn = async (formData: FormData) => {
+    try {
+      if (useOTP) {
+        // Magic link flow
+        const response = await signInWithOTPAction(formData) as SignInResponse;
+        setStatus(response);
+      } else {
+        // Password flow - redirect happens automatically
+        try {
+          await signInAction(formData);
+          // If we get here without redirect, show success toast anyway
+          toast.success("Welcome back!");
+        } catch (err) {
+          if (err && typeof err === 'object' && 'error' in err) {
+            setStatus({ error: (err as any).error });
+          } else {
+            setStatus({ error: "Failed to sign in" });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Sign in error:", error);
+      setStatus({ error: "An unexpected error occurred" });
+    }
+  };
 
   return (
     <form className="flex flex-col w-full">
@@ -66,11 +117,21 @@ export function SignInForm({ message }: { message?: Message }) {
 
         <SubmitButton 
           pendingText={useOTP ? "Sending Magic Link..." : "Signing In..."} 
-          formAction={async (formData: FormData) => { await (useOTP ? signInWithOTPAction : signInAction)(formData); }}
+          formAction={handleSignIn}
         >
           {useOTP ? "Send Magic Link" : "Sign in"}
         </SubmitButton>
         {message && <FormMessage message={message} />}
+        {status.error && (
+          <p className="mt-4 text-sm text-red-400 bg-red-400/10 p-3 rounded-lg border border-red-400/20">
+            {status.error}
+          </p>
+        )}
+        {status.success && (
+          <p className="mt-4 text-sm text-green-400 bg-green-400/10 p-3 rounded-lg border border-green-400/20">
+            {status.success}
+          </p>
+        )}
       </div>
     </form>
   );

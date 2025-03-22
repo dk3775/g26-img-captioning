@@ -1,6 +1,7 @@
 import { ThemeProvider } from "next-themes";
 import { GeistSans } from 'geist/font/sans';
 import "./globals.css";
+import { Toaster } from "sonner";
 
 export const metadata = {
   title: "AI Image Caption Generator",
@@ -41,6 +42,7 @@ export default function RootLayout({
             {children}
           </main>
         </ThemeProvider>
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );
