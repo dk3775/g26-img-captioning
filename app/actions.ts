@@ -5,72 +5,87 @@ import { createClient } from "@/utils/supabase/server";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-export const signUpAction = async (formData: FormData) => {
-  const email = formData.get("email")?.toString();
-  const password = formData.get("password")?.toString();
-  const fullName = formData.get("full_name")?.toString();
-  const age = parseInt(formData.get("age")?.toString() || "0");
-  const gender = formData.get("gender")?.toString();
-  const occupation = formData.get("occupation")?.toString();
-  const country = formData.get("country")?.toString();
-  const interests = formData.getAll("interests").map(i => i.toString());
-  const usagePurpose = formData.get("usage_purpose")?.toString();
+export const signUpAction = async (state: any, formData: FormData) => {
+  try {
+    const email = formData.get("email")?.toString();
+    const password = formData.get("password")?.toString();
+    const fullName = formData.get("full_name")?.toString();
+    const age = parseInt(formData.get("age")?.toString() || "0");
+    const gender = formData.get("gender")?.toString();
+    const occupation = formData.get("occupation")?.toString();
+    const country = formData.get("country")?.toString();
+    const interests = formData.getAll("interests[]").map(i => i.toString());
+    const usagePurpose = formData.get("usage_purpose")?.toString();
 
-  // Validate required fields
-  if (!email || !password || !fullName || !age || !gender || 
-      !occupation || !country || interests.length === 0 || !usagePurpose) {
-    return encodedRedirect(
-      "error",
-      "/sign-up",
-      "All fields are required",
-    );
-  }
+    // Validate required fields
+    if (!email || !password || !fullName || !age || !gender || 
+        !occupation || !country || interests.length === 0 || !usagePurpose) {
+      return {
+        error: "All fields are required"
+      };
+    }
 
-  // Validate interests length
-  if (interests.length > 5) {
-    return encodedRedirect(
-      "error",
-      "/sign-up",
-      "Please select up to 5 interests",
-    );
-  }
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return {
+        error: "Please enter a valid email address"
+      };
+    }
 
-  // Validate age
-  if (age < 13 || age > 120) {
-    return encodedRedirect(
-      "error",
-      "/sign-up",
-      "Age must be between 13 and 120",
-    );
-  }
+    // Validate password strength
+    if (password.length < 6) {
+      return {
+        error: "Password must be at least 6 characters long"
+      };
+    }
 
-  // Validate occupation
-  const validOccupations = ['educator', 'student', 'hobbyist', 'professional', 'other'];
-  if (!validOccupations.includes(occupation.toLowerCase())) {
-    return encodedRedirect(
-      "error",
-      "/sign-up",
-      "Invalid occupation selected",
-    );
-  }
+    // Validate interests length
+    if (interests.length > 5) {
+      return {
+        error: "Please select up to 5 interests"
+      };
+    }
 
-  const supabase = await createClient();
-  const origin = (await headers()).get("origin");
+    // Validate age
+    if (age < 13 || age > 120) {
+      return {
+        error: "Age must be between 13 and 120"
+      };
+    }
 
-  const { data: { user }, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${origin}/auth/callback`,
-    },
-  });
+    // Validate occupation
+    const validOccupations = ['educator', 'student', 'hobbyist', 'professional', 'other'];
+    if (!validOccupations.includes(occupation.toLowerCase())) {
+      return {
+        error: "Invalid occupation selected"
+      };
+    }
 
-  if (error) {
-    console.error(error.code + " " + error.message);
-    return encodedRedirect("error", "/sign-up", error.message);
-  }
+    const supabase = await createClient();
+    const origin = (await headers()).get("origin");
 
-  if (user) {
+    const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${origin}/auth/callback`,
+      },
+    });
+
+    if (signUpError) {
+      console.error("Signup error:", signUpError);
+      return {
+        error: signUpError.message
+      };
+    }
+
+    if (!user) {
+      return {
+        error: "Failed to create user account"
+      };
+    }
+
     // Update the users table with additional information
     const { error: profileError } = await supabase
       .from('users')
@@ -87,20 +102,20 @@ export const signUpAction = async (formData: FormData) => {
 
     if (profileError) {
       console.error("Error updating profile:", profileError);
-      // Continue with sign up even if profile update fails
-      return encodedRedirect(
-        "error",
-        "/sign-up",
-        "Account created but profile update failed. Please update your profile later."
-      );
+      return {
+        error: "Account created but profile update failed. Please update your profile later."
+      };
     }
-  }
 
-  return encodedRedirect(
-    "success",
-    "/sign-up",
-    "Thanks for signing up! Please check your email for a verification link.",
-  );
+    return {
+      success: "Thanks for signing up! Please check your email for a verification link."
+    };
+  } catch (error) {
+    console.error("Signup error:", error);
+    return {
+      error: "An unexpected error occurred during signup"
+    };
+  }
 };
 
 export const signInAction = async (formData: FormData) => {
@@ -119,6 +134,29 @@ export const signInAction = async (formData: FormData) => {
 
   return redirect("/app");
 };
+
+export async function signInWithOTPAction(formData: FormData) {
+  'use server'
+  
+  const email = formData.get('email') as string
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+    },
+  })
+
+  if (error) {
+    return {
+      error: error.message
+    }
+  }
+
+  return {
+    success: 'Check your email for the login link!'
+  }
+}
 
 export const forgotPasswordAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();

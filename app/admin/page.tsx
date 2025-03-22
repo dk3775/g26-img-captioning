@@ -20,6 +20,7 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut, Line, Pie, PolarArea, Radar } from 'react-chartjs-2';
 import { format, subDays } from 'date-fns';
+import WordCloud from '@/components/WordCloud';
 
 // Register additional ChartJS components
 ChartJS.register(
@@ -266,7 +267,10 @@ export default function AdminDashboard() {
     return data.reduce((acc: Record<string, number>, curr: any) => {
       const key = Object.values(curr)[0] as string;
       const value = Number(Object.values(curr)[1]);
-      acc[key] = value;
+      // Only add non-null values
+      if (key && !isNaN(value) && value !== null) {
+        acc[key] = value;
+      }
       return acc;
     }, {});
   }
@@ -300,10 +304,12 @@ export default function AdminDashboard() {
   };
 
   const occupationChartData = {
-    labels: Object.keys(demographics.occupations),
+    labels: Object.keys(demographics.occupations).filter(key => demographics.occupations[key] > 0),
     datasets: [{
       label: 'Number of Users',
-      data: Object.values(demographics.occupations),
+      data: Object.entries(demographics.occupations)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: 'rgba(54, 162, 235, 0.2)',
       borderColor: 'rgba(54, 162, 235, 1)',
       borderWidth: 2,
@@ -312,10 +318,12 @@ export default function AdminDashboard() {
   };
 
   const countryChartData = {
-    labels: Object.keys(demographics.countries),
+    labels: Object.keys(demographics.countries).filter(key => demographics.countries[key] > 0),
     datasets: [{
       label: 'Users by Country',
-      data: Object.values(demographics.countries),
+      data: Object.entries(demographics.countries)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: (context: any) => {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
@@ -331,10 +339,12 @@ export default function AdminDashboard() {
   };
 
   const signupChartData = {
-    labels: Object.keys(demographics.dailySignups),
+    labels: Object.keys(demographics.dailySignups).filter(key => demographics.dailySignups[key] > 0),
     datasets: [{
       label: 'Daily Sign-ups',
-      data: Object.values(demographics.dailySignups),
+      data: Object.entries(demographics.dailySignups)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       fill: true,
       borderColor: 'rgb(75, 192, 192)',
       backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -343,10 +353,12 @@ export default function AdminDashboard() {
   };
 
   const ageGroupChartData = {
-    labels: Object.keys(demographics.ageGroups),
+    labels: Object.keys(demographics.ageGroups).filter(key => demographics.ageGroups[key] > 0),
     datasets: [{
       label: 'Users by Age Group',
-      data: Object.values(demographics.ageGroups),
+      data: Object.entries(demographics.ageGroups)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: chartColors.primary,
       borderColor: chartColors.borders,
       borderWidth: 1,
@@ -354,18 +366,22 @@ export default function AdminDashboard() {
   };
 
   const interestChartData = {
-    labels: Object.keys(demographics.interests),
+    labels: Object.keys(demographics.interests).filter(key => demographics.interests[key] > 0),
     datasets: [{
-      data: Object.values(demographics.interests),
+      data: Object.entries(demographics.interests)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: chartColors.primary,
       borderWidth: 1,
     }]
   };
 
   const genderChartData = {
-    labels: Object.keys(demographics.genders),
+    labels: Object.keys(demographics.genders).filter(key => demographics.genders[key] > 0),
     datasets: [{
-      data: Object.values(demographics.genders),
+      data: Object.entries(demographics.genders)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: chartColors.primary.slice(0, 4),
       borderColor: chartColors.borders.slice(0, 4),
       borderWidth: 1,
@@ -373,10 +389,12 @@ export default function AdminDashboard() {
   };
 
   const usagePurposeChartData = {
-    labels: Object.keys(demographics.usagePurposes),
+    labels: Object.keys(demographics.usagePurposes).filter(key => demographics.usagePurposes[key] > 0),
     datasets: [{
       label: 'Usage Purposes',
-      data: Object.values(demographics.usagePurposes),
+      data: Object.entries(demographics.usagePurposes)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: chartColors.primary,
       borderColor: chartColors.borders,
       borderWidth: 1,
@@ -539,6 +557,18 @@ export default function AdminDashboard() {
     return <div className="min-h-screen pt-20 text-center">Loading...</div>;
   }
 
+  // Transform usage purposes data for word cloud
+  const usagePurposeWords = Object.entries(demographics.usagePurposes)
+    .filter(([text, value]) => value > 0)
+    .flatMap(([text, value]) => 
+      text.split(/[\s,]+/)
+        .filter(word => word.length > 2)
+        .map(word => ({
+          text: word,
+          value: value
+        }))
+    );
+
   return (
     <div className="min-h-screen pt-20 px-4">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -604,7 +634,11 @@ export default function AdminDashboard() {
           <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
             <h3 className="text-xl font-bold mb-4">Usage Purposes</h3>
             <div className="h-[300px] flex items-center justify-center">
-              <Doughnut data={usagePurposeChartData} options={doughnutOptions} />
+              <WordCloud 
+                words={usagePurposeWords}
+                width={300}
+                height={300}
+              />
             </div>
           </div>
 
@@ -801,3 +835,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
