@@ -15,10 +15,17 @@ export async function uploadImage(formData: FormData) {
       throw new Error('File size too large. Maximum size is 5MB');
     }
 
-    // Validate file type
+    // Enhanced file type validation
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    const allowedExtensions = ['jpg', 'jpeg', 'png'];
+    
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!fileExt || !allowedExtensions.includes(fileExt)) {
+      throw new Error('Invalid file extension. Only JPG, JPEG and PNG files are allowed');
+    }
+    
     if (!allowedTypes.includes(file.type)) {
-      throw new Error('Invalid file type. Only JPEG and PNG files are allowed');
+      throw new Error('Invalid file type. Only JPG, JPEG and PNG files are allowed');
     }
 
     const supabase = await createClient();
@@ -30,8 +37,8 @@ export async function uploadImage(formData: FormData) {
     }
 
     // Create unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${uuidv4()}.${fileExt}`;
+    const extension = file.name.split('.').pop();
+    const fileName = `${uuidv4()}.${extension}`;
     const filePath = `uploads/${fileName}`;
 
     // Convert File to ArrayBuffer

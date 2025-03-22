@@ -120,6 +120,29 @@ export const signInAction = async (formData: FormData) => {
   return redirect("/app");
 };
 
+export async function signInWithOTPAction(formData: FormData) {
+  'use server'
+  
+  const email = formData.get('email') as string
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+    },
+  })
+
+  if (error) {
+    return {
+      error: error.message
+    }
+  }
+
+  return {
+    success: 'Check your email for the login link!'
+  }
+}
+
 export const forgotPasswordAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const supabase = await createClient();

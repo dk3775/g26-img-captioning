@@ -266,7 +266,10 @@ export default function AdminDashboard() {
     return data.reduce((acc: Record<string, number>, curr: any) => {
       const key = Object.values(curr)[0] as string;
       const value = Number(Object.values(curr)[1]);
-      acc[key] = value;
+      // Only add non-null values
+      if (key && !isNaN(value) && value !== null) {
+        acc[key] = value;
+      }
       return acc;
     }, {});
   }
@@ -300,10 +303,12 @@ export default function AdminDashboard() {
   };
 
   const occupationChartData = {
-    labels: Object.keys(demographics.occupations),
+    labels: Object.keys(demographics.occupations).filter(key => demographics.occupations[key] > 0),
     datasets: [{
       label: 'Number of Users',
-      data: Object.values(demographics.occupations),
+      data: Object.entries(demographics.occupations)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: 'rgba(54, 162, 235, 0.2)',
       borderColor: 'rgba(54, 162, 235, 1)',
       borderWidth: 2,
@@ -312,10 +317,12 @@ export default function AdminDashboard() {
   };
 
   const countryChartData = {
-    labels: Object.keys(demographics.countries),
+    labels: Object.keys(demographics.countries).filter(key => demographics.countries[key] > 0),
     datasets: [{
       label: 'Users by Country',
-      data: Object.values(demographics.countries),
+      data: Object.entries(demographics.countries)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: (context: any) => {
         const chart = context.chart;
         const { ctx, chartArea } = chart;
@@ -331,10 +338,12 @@ export default function AdminDashboard() {
   };
 
   const signupChartData = {
-    labels: Object.keys(demographics.dailySignups),
+    labels: Object.keys(demographics.dailySignups).filter(key => demographics.dailySignups[key] > 0),
     datasets: [{
       label: 'Daily Sign-ups',
-      data: Object.values(demographics.dailySignups),
+      data: Object.entries(demographics.dailySignups)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       fill: true,
       borderColor: 'rgb(75, 192, 192)',
       backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -343,10 +352,12 @@ export default function AdminDashboard() {
   };
 
   const ageGroupChartData = {
-    labels: Object.keys(demographics.ageGroups),
+    labels: Object.keys(demographics.ageGroups).filter(key => demographics.ageGroups[key] > 0),
     datasets: [{
       label: 'Users by Age Group',
-      data: Object.values(demographics.ageGroups),
+      data: Object.entries(demographics.ageGroups)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: chartColors.primary,
       borderColor: chartColors.borders,
       borderWidth: 1,
@@ -354,18 +365,22 @@ export default function AdminDashboard() {
   };
 
   const interestChartData = {
-    labels: Object.keys(demographics.interests),
+    labels: Object.keys(demographics.interests).filter(key => demographics.interests[key] > 0),
     datasets: [{
-      data: Object.values(demographics.interests),
+      data: Object.entries(demographics.interests)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: chartColors.primary,
       borderWidth: 1,
     }]
   };
 
   const genderChartData = {
-    labels: Object.keys(demographics.genders),
+    labels: Object.keys(demographics.genders).filter(key => demographics.genders[key] > 0),
     datasets: [{
-      data: Object.values(demographics.genders),
+      data: Object.entries(demographics.genders)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: chartColors.primary.slice(0, 4),
       borderColor: chartColors.borders.slice(0, 4),
       borderWidth: 1,
@@ -373,10 +388,12 @@ export default function AdminDashboard() {
   };
 
   const usagePurposeChartData = {
-    labels: Object.keys(demographics.usagePurposes),
+    labels: Object.keys(demographics.usagePurposes).filter(key => demographics.usagePurposes[key] > 0),
     datasets: [{
       label: 'Usage Purposes',
-      data: Object.values(demographics.usagePurposes),
+      data: Object.entries(demographics.usagePurposes)
+        .filter(([_, value]) => value > 0)
+        .map(([_, value]) => value),
       backgroundColor: chartColors.primary,
       borderColor: chartColors.borders,
       borderWidth: 1,
