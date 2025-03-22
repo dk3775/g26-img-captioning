@@ -20,6 +20,7 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut, Line, Pie, PolarArea, Radar } from 'react-chartjs-2';
 import { format, subDays } from 'date-fns';
+import WordCloud from '@/components/WordCloud';
 
 // Register additional ChartJS components
 ChartJS.register(
@@ -556,6 +557,18 @@ export default function AdminDashboard() {
     return <div className="min-h-screen pt-20 text-center">Loading...</div>;
   }
 
+  // Transform usage purposes data for word cloud
+  const usagePurposeWords = Object.entries(demographics.usagePurposes)
+    .filter(([text, value]) => value > 0)
+    .flatMap(([text, value]) => 
+      text.split(/[\s,]+/)
+        .filter(word => word.length > 2)
+        .map(word => ({
+          text: word,
+          value: value
+        }))
+    );
+
   return (
     <div className="min-h-screen pt-20 px-4">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -621,7 +634,11 @@ export default function AdminDashboard() {
           <div className="bg-black/30 p-6 rounded-xl backdrop-blur-xl border border-gray-800">
             <h3 className="text-xl font-bold mb-4">Usage Purposes</h3>
             <div className="h-[300px] flex items-center justify-center">
-              <Doughnut data={usagePurposeChartData} options={doughnutOptions} />
+              <WordCloud 
+                words={usagePurposeWords}
+                width={300}
+                height={300}
+              />
             </div>
           </div>
 
@@ -818,3 +835,4 @@ export default function AdminDashboard() {
     </div>
   );
 }
+
