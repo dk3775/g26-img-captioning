@@ -4,12 +4,12 @@ import { motion } from 'framer-motion';
 export default function DemoPage() {
   const demoExamples = [
     {
-      image: '/demo-1.jpg',
+      image: '/demo-1.png',
       caption: 'A scenic mountain landscape with snow-capped peaks',
       accuracy: '98%'
     },
     {
-      image: '/demo-2.jpg',
+      image: '/demo-2.png',
       caption: 'A busy city street at night with neon signs',
       accuracy: '96%'
     },
@@ -42,6 +42,11 @@ export default function DemoPage() {
                     src={example.image} 
                     alt="Demo" 
                     className="w-full h-64 object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.onerror = null;
+                      target.src = '/placeholder-image.png';
+                    }}
                   />
                 </div>
                 <div className="p-4 bg-white/5 rounded-lg">

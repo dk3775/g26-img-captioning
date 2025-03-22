@@ -4,11 +4,21 @@ import { motion } from 'framer-motion';
 export default function TeamPage() {
   const teamMembers = [
     {
-      name: 'Team Member 1',
-      role: 'Role',
-      image: '/team/member1.jpg', // Add team member images
-      github: 'https://github.com/username'
-    },
+      name: 'Dhyey Kathiriya',
+      role: 'Full Stack Developer',
+      image: '/member-1.png', // Fixed image path with hyphen
+      github: 'https://github.com/dk3775'
+    },{
+      name: 'Khush Nadpara',
+      role: 'Cyber Security Expert',
+      image: '/member-2.png', // Fixed image path with hyphen
+      github: 'https://github.com/'
+    },{
+      name: 'Riya Mehta',
+      role: 'AI ML Developer',
+      image: '/member-3.png', // Fixed image path with hyphen
+      github: 'https://github.com/'
+    }
     // Add more team members
   ];
 
