@@ -4,6 +4,15 @@ import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import cloud from 'd3-cloud';
 
+interface CloudWord {
+  text: string;
+  value: number;
+  size?: number;
+  x?: number;
+  y?: number;
+  rotate?: number;
+}
+
 interface WordCloudProps {
   words: Array<{ text: string; value: number }>;
   width?: number;
@@ -29,7 +38,7 @@ const WordCloud = ({ words, width = 300, height = 300 }: WordCloudProps) => {
       .words(words)
       .padding(5)
       .rotate(() => 0)
-      .fontSize(d => Math.sqrt(d.value) * 15)
+      .fontSize((d: any) => Math.sqrt((d as CloudWord).value) * 15)
       .on("end", draw);
 
     layout.start();
@@ -44,13 +53,16 @@ const WordCloud = ({ words, width = 300, height = 300 }: WordCloudProps) => {
       svg.selectAll("text")
         .data(words)
         .enter().append("text")
-        .style("font-size", d => `${d.size}px`)
+        .style("font-size", (d: any) => `${(d as CloudWord).size}px`)
         .style("font-family", "Inter, sans-serif")
         .style("font-weight", "bold")
-        .style("fill", (_, i) => colorScale(i.toString()))
+        .style("fill", (_, i: number): string => colorScale(i.toString()) as string)
         .attr("text-anchor", "middle")
-        .attr("transform", d => `translate(${d.x},${d.y}) rotate(${d.rotate})`)
-        .text(d => d.text);
+        .attr("transform", function(d: any) {
+          const word = d as CloudWord;
+          return `translate(${word.x ?? 0},${word.y ?? 0}) rotate(${word.rotate ?? 0})`;
+        })
+        .text((d: any) => (d as CloudWord).text);
     }
   }, [words, width, height]);
 
@@ -66,5 +78,13 @@ const WordCloud = ({ words, width = 300, height = 300 }: WordCloudProps) => {
 };
 
 export default WordCloud;
+
+
+
+
+
+
+
+
 
 
