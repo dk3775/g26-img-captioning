@@ -37,40 +37,44 @@ export default function AppPage() {
   const generateCaption = async () => {
     if (!imageUrl) return;
     setLoading(true);
+  
     try {
+      const response = await fetch(imageUrl); // Download the image file
+      const blob = await response.blob();
+      const formData = new FormData();
+      formData.append('file', blob, 'uploaded_image.jpg');
+  
+      const apiResponse = await fetch('http://127.0.0.1:8000/generate-caption', {
+        method: 'POST',
+        body: formData,
+      });
+  
+      const data = await apiResponse.json();
+      const generated = data.caption || "No caption generated";
+  
       const startTime = performance.now();
-      
-      // TODO: Implement actual API call
-      const mockCaption = 'Example caption - API integration pending';
       const processingTime = (performance.now() - startTime) / 1000;
-      
-      // Store the generation in the database
+  
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { error } = await supabase
-          .from('generations')
-          .insert({
-            user_id: user.id,
-            image_url: imageUrl,
-            caption: mockCaption,
-            confidence_score: 0.95, // Mock confidence score
-            processing_time: processingTime,
-            tokens_used: 1
-          });
-          
-        if (error) {
-          console.error('Error storing generation:', error);
-        }
+        await supabase.from('generations').insert({
+          user_id: user.id,
+          image_url: imageUrl,
+          caption: generated,
+          confidence_score: 0.95,
+          processing_time: processingTime,
+          tokens_used: 1
+        });
       }
-
-      setCaption(mockCaption);
+  
+      setCaption(generated);
     } catch (error) {
       console.error('Error generating caption:', error);
     } finally {
       setLoading(false);
     }
   };
-
+  
   return (
     <div className="min-h-screen p-4">
       <div className="max-w-4xl mx-auto pt-8">
